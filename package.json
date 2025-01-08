@@ -1,0 +1,26 @@
+{
+  "name": "onchain-audit-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local, deterministic gas profiler and verifier for complex L2 transactions, enabling precise cost budgeting and reproducible audits",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npx hardhat test --network hardhat",
+    "format": "npx prettier --write .",
+    "lint": "eslint . --ext .ts --ext .tsx",
+    "deploy": "ts-node scripts/deploy.ts"
+  },
+  "dependencies": {
+    "ethers": "^5.7.0",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.1.0",
+    "hardhat": "^2.14.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  },
+  "author": "onchain-audit-hub",
+  "license": "MIT"
+}
