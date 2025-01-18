@@ -1,57 +1,61 @@
-import { expect } from 'chai';
-import { ethers } from 'hardhat';
+// SPDX-License-Identifier: MIT
+import { expect } from "chai";
+import { ethers } from "hardhat";
 
-describe('AuditHub', function () {
-  let AuditHub: any;
-  let hub: any;
-  let owner: any;
-  let addr1: any;
+describe("AuditHub - pause and ownership tests", function () {
+  it("owner can pause and unpause, and non-owner cannot", async function () {
+    const [owner, nonOwner] = await ethers.getSigners();
 
-  beforeEach(async function () {
-    [owner, addr1] = await ethers.getSigners();
-    const factory = await ethers.getContractFactory('AuditHub');
-    hub = await factory.deploy();
+    const AuditHub = await ethers.getContractFactory("AuditHub");
+    const hub = await AuditHub.deploy();
     await hub.deployed();
+
+    // initial state
+    expect(await hub.paused()).to.equal(false);
+
+    // owner can pause
+    await hub.connect(owner).setPaused(true);
+    expect(await hub.paused()).to.equal(true);
+
+    // non-owner cannot pause/unpause
+    await expect(
+      hub.connect(nonOwner).setPaused(false)
+    ).to.be.reverted;
+
+    // owner can unpause
+    await hub.connect(owner).setPaused(false);
+    expect(await hub.paused()).to.equal(false);
   });
 
-  it('should set owner on deployment', async function () {
-    const currentOwner = await hub.owner();
-    expect(currentOwner).to.equal(await ethers.getSigner(0).getAddress());
+  it("only owner can transfer ownership", async function () {
+    const [owner, newOwner, other] = await ethers.getSigners();
+    const AuditHub = await ethers.getContractFactory("AuditHub");
+    const hub = await AuditHub.deploy();
+    await hub.deployed();
+
+    // non-owner cannot transfer
+    await expect(
+      hub.connect(other).transferOwnership(newOwner.address)
+    ).to.be.reverted;
+
+    // owner can transfer
+    await hub.connect(owner).transferOwnership(newOwner.address);
+    expect(await hub.owner()).to.equal(newOwner.address);
   });
 
-  it('should allow owner to profile a tx deterministically and cache result', async function () {
-    const [signer] = await ethers.getSigners();
-    // prepare a payload
-    const data = ethers.utils.toUtf8Bytes('complex-l2-tx-payload-001');
-    const txHash = ethers.utils.keccak256(data);
+  it("proposeAudit should respect paused state", async function () {
+    const [owner, proposer] = await ethers.getSigners();
+    const AuditHub = await ethers.getContractFactory("AuditHub");
+    const hub = await AuditHub.deploy();
+    await hub.deployed();
 
-    // first call computes and caches
-    const gas1 = await hub.connect(signer).profileTx(data) as any;
-    // second call should emit and return cached value via constant, but function returns computed value on call as well
-    const gas2 = await hub.connect(signer).profileTx(data) as any;
-    expect(gas1).to.equal(gas2);
-  });
+    // propose when not paused
+    await hub.connect(proposer).proposeAudit("first audit");
 
-  it('should revert when non-owner tries to register audit', async function () {
-    const data = ethers.utils.toUtf8Bytes('payload');
-    const txHash = ethers.utils.keccak256(data);
-    const gasCost = 1234;
-
-    await expect(hub.connect(addr1).registerAudit(txHash, gasCost, 'test')).to.be.revertedWith('AuditHub: caller is not the owner');
-  });
-
-  it('owner can register and retrieve an audit', async function () {
-    const data = ethers.utils.toUtf8Bytes('payload-for-audit');
-    const txHash = ethers.utils.keccak256(data);
-    const gasCost = 2000;
-
-    // profile first to ensure we have a gas cost
-    const grad = await hub.profileTx(data);
-    // register audit
-    await expect(hub.registerAudit(txHash, gasCost, 'audit-desc')).to.not.be.reverted;
-    // retrieve audit
-    const rec = await hub.getAudit(txHash);
-    expect(rec.gasCost).to.equal(gasCost);
-    expect(rec.description).to.equal('audit-desc');
+    // pause and ensure proposeAudit reverts
+    await hub.connect(owner).setPaused(true);
+    await expect(
+      hub.connect(proposer).proposeAudit("second audit")
+    ).to.be.reverted;
   });
 });
