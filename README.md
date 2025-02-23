@@ -1,28 +1,21 @@
-# onchain-audit-hub
+# Onchain Audit Hub
 
-Outline
-- What it is: A local, deterministic gas profiler and verifier for complex L2 transactions, enabling precise cost budgeting and reproducible audits.
-- Core ideas: deterministic gas profiling, deterministic benchmarks, access-controlled audit registry, and HHL tooling for local verification.
-- How to use: Hardhat-based workflow with env-driven RPC URLs and local testing harness.
+This repository contains a minimal on-chain audit hub contract setup with owner-based access control. The code emphasizes simplicity and security best practices such as:
 
-Quickstart
-1. Install dependencies
-   - Ensure Node.js >= 18.
-   - Run: npm ci
-2. Run tests
-   - Copy environment: cp .env.example .env (set RPC_URL, PRIVATE_KEY as needed)
-   - npx hardhat test
-3. Run a local deploy (script)
-   - npx hardhat run scripts/deploy.ts --network local
+- Centralized admin (owner) controls via Ownable.sol
+- Clear separation between utility helpers (Utils.sol) and core contract logic
+- Hardhat-based testing and deployment workflow
 
-Deployment
-- Prepare a local Hardhat network (or use a local node).
-- Deploy AuditHub contract via scripts/deploy.ts; logs include deployed address.
-- Use tests to validate deterministic gas profiling and revert behaviors.
+Security notes and recommended hardening (to be implemented in future incremental updates):
 
-Outline of the project
-- contracts/AuditHub.sol: Core deterministic profiler with access control and audit registry.
-- test/AuditHub.test.ts: Unit tests covering ownership, reverts, and deterministic outputs.
-- scripts/deploy.ts: Deploy to a local network with environment-driven configuration.
-- hardhat.config.ts: Hardhat config with TS support and toolbox plugin.
-- package.json: Minimal, realistic dependencies for a compact production-ready setup.
+- Introduce a circuit-breaker / pause mechanism on the core contract (AuditHub.sol) guarded by onlyOwner to halt operations in emergency situations.
+- Audit-critical functions to ensure only authorized addresses can update configuration (e.g., oracle addresses, policy parameters).
+- Consider reentrancy guards on any functions performing external calls or state changes in sequences.
+- Add an emergencyWithdraw or admin-reset flow with proper event emission and treasury checks if the contract handles funds.
+- Strengthen access control around any contract-to-contract calls to avoid unintended permissions.
+
+If you plan to extend this in a follow-up, a small, self-contained change that is safe to deploy would be:
+- Add a pause() and unpause() to AuditHub.sol guarded by onlyOwner, plus a isPaused modifier applied to state-changing functions.
+- Extend Ownable.sol with an event-driven transfer of ownership and a two-step transfer pattern for safety.
+
+For now, this update focuses on codebase safety through documentation and explicit security considerations, setting the stage for a future incremental hardening patch.
